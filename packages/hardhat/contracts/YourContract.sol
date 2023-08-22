@@ -2,6 +2,7 @@ pragma solidity >=0.8.0 <0.9.0;
 //SPDX-License-Identifier: MIT
 
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/access/Ownable.sol
 
 
@@ -10,6 +11,7 @@ contract YourContract is Ownable {
     struct BuilderStreamInfo {
         uint256 cap;
         uint256 last;
+        address optionalTokenAddress;
     }
     mapping(address => BuilderStreamInfo) public streamedBuilders;
     // ToDo. Change to 30 days
@@ -39,7 +41,9 @@ contract YourContract is Ownable {
 
     function unlockedBuilderAmount(address _builder) public view returns (uint256) {
         BuilderStreamInfo memory builderStream = streamedBuilders[_builder];
-        require(builderStream.cap > 0, "No active stream for builder");
+        if (builderStream.cap == 0) {
+            return 0;
+        }
 
         if (block.timestamp - builderStream.last > frequency) {
             return builderStream.cap;
@@ -48,15 +52,15 @@ contract YourContract is Ownable {
         return (builderStream.cap * (block.timestamp - builderStream.last)) / frequency;
     }
 
-    function addBuilderStream(address payable _builder, uint256 _cap) public onlyOwner {
-        streamedBuilders[_builder] = BuilderStreamInfo(_cap, block.timestamp - frequency);
+    function addBuilderStream(address payable _builder, uint256 _cap, address _optionalTokenAddress) public onlyOwner {
+        streamedBuilders[_builder] = BuilderStreamInfo(_cap, block.timestamp - frequency, _optionalTokenAddress);
         emit AddBuilder(_builder, _cap);
     }
 
-    function addBatch(address[] memory _builders, uint256[] memory _caps) public onlyOwner {
+    function addBatch(address[] memory _builders, uint256[] memory _caps, address[] memory _optionalTokenAddresses) public onlyOwner {
         require(_builders.length == _caps.length, "Lengths are not equal");
         for (uint256 i = 0; i < _builders.length; i++) {
-            addBuilderStream(payable(_builders[i]), _caps[i]);
+            addBuilderStream(payable(_builders[i]), _caps[i],_optionalTokenAddresses[i]);
         }
     }
 
@@ -68,9 +72,19 @@ contract YourContract is Ownable {
     }
 
     function streamWithdraw(uint256 _amount, string memory _reason) public {
-        require(address(this).balance >= _amount, "Not enough funds in the contract");
+
+        IERC20 token;
         BuilderStreamInfo storage builderStream = streamedBuilders[msg.sender];
+        
+        if(builderStream.optionalTokenAddress == address(0)){
+            require(address(this).balance >= _amount, "Not enough funds in the contract");
+        }else{
+            token = IERC20(builderStream.optionalTokenAddress);
+            require(token.balanceOf(address(this)) >= _amount, "Not enough tokens in the contract");
+        }
+        
         require(builderStream.cap > 0, "No active stream for builder");
+        
 
         uint256 totalAmountCanWithdraw = unlockedBuilderAmount(msg.sender);
         require(totalAmountCanWithdraw >= _amount,"Not enough in the stream");
@@ -82,8 +96,17 @@ contract YourContract is Ownable {
 
         builderStream.last = builderStream.last + ((block.timestamp - builderStream.last) * _amount / totalAmountCanWithdraw);
 
-        (bool sent,) = msg.sender.call{value: _amount}("");
-        require(sent, "Failed to send Ether");
+        if(builderStream.optionalTokenAddress == address(0)){
+
+            (bool sent,) = msg.sender.call{value: _amount}("");
+            require(sent, "Failed to send Ether");
+
+        }else{
+
+            token.transfer(msg.sender, _amount);
+            
+        }
+        
 
         emit Withdraw(msg.sender, _amount, _reason);
     }

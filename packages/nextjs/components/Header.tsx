@@ -1,4 +1,6 @@
 import React from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaffold-eth";
 
 /**
@@ -6,13 +8,17 @@ import { FaucetButton, RainbowKitCustomConnectButton } from "~~/components/scaff
  */
 export const Header = () => {
   return (
-    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 flex-shrink-0 justify-between z-20 p-4">
-      <div className="flex-col items-start">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="logo" />
-        <p className="m-0 mt-1 bg-hacker text-primary-content">BuidlGuidl Grants</p>
+    <div className="sticky lg:static top-0 navbar bg-base-100 min-h-0 flex-shrink-0 justify-between z-20 p-0 sm:p-4 font-grotesk">
+      <div className="flex items-center justify-center mb-4 sm:mb-0 invisible md:visible">
+        <Image src="/logo.svg" alt="Hacker House Logo" width={40} height={40} className="mx-4" />
+        <div className="flex-col items-start">
+          <p className="m-0 text-xl md:text-3xl font-bold !leading-7">
+            <Link href="/">Your Hacker House</Link>
+          </p>
+          <p className="m-0 mt-1 text-sm md:text-base">BuidlGuidl Grants</p>
+        </div>
       </div>
-      <div className="navbar-end flex-grow mr-4">
+      <div className="navbar-end flex-grow mr-4 flex justify-center sm:justify-end">
         <RainbowKitCustomConnectButton />
         <FaucetButton />
       </div>
